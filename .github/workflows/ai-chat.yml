@@ -1,0 +1,127 @@
+name: 💬 AI Chat (Issue 对话 - DeepSeek)
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ai-chat-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  chat:
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'ai') ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.issue.labels.*.name, 'ai') &&
+       github.event.comment.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔧 Call DeepSeek API and post response
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          # 1. 获取 Issue 详情和所有评论，拼成消息列表
+          gh api "/repos/$REPO/issues/$ISSUE_NUMBER" > /tmp/issue.json
+
+          # 2. 构建 API 请求体 (用 node 写 JSON 更安全)
+          node << 'NODE_SCRIPT'
+          const fs = require("fs");
+          const { execSync } = require("child_process");
+
+          const repo = process.env.REPO;
+          const issueNum = process.env.ISSUE_NUMBER;
+
+          // 读取 Issue
+          const issue = JSON.parse(fs.readFileSync("/tmp/issue.json", "utf8"));
+
+          const messages = [];
+
+          // System
+          messages.push({
+            role: "system",
+            content: "你是 AI 助手，运行在 GitHub Actions CI 中，通过 GitHub Issue 与用户进行异步对话。\n" +
+              "你有权读取当前仓库的代码，可以回答代码问题、审查代码、生成代码等。\n" +
+              "你不能 push 代码、不能访问互联网、不能运行长时间任务。\n\n" +
+              "## 回复要求\n" +
+              "- 使用中文回复\n" +
+              "- 保持简洁有重点\n" +
+              "- 涉及代码时使用 Markdown 三重反引号 (```) 包裹\n" +
+              "- 如果用户问的是代码问题，引用具体的文件路径和行号"
+          });
+
+          // Issue 标题 + 正文
+          messages.push({
+            role: "user",
+            content: `## 对话主题\n${issue.title}\n\n## 消息\n${issue.body || "(无正文)"}`
+          });
+
+          // 获取评论历史（从旧到新）
+          try {
+            const raw = execSync(
+              `gh api /repos/${repo}/issues/${issueNum}/comments --paginate`,
+              { encoding: "utf8", maxBuffer: 5 * 1024 * 1024 }
+            );
+            const comments = JSON.parse(raw);
+            for (const c of comments) {
+              const role = c.user.type === "Bot" ? "assistant" : "user";
+              messages.push({ role, content: c.body });
+            }
+          } catch (e) { /* 没有评论就跳过 */ }
+
+          // 写入请求体
+          const body = JSON.stringify({
+            model: "deepseek-chat",
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 4096,
+            stream: false
+          });
+          fs.writeFileSync("/tmp/request.json", body, "utf8");
+
+          console.log(`📤 发送请求 (共 ${messages.length} 条消息)...`);
+          NODE_SCRIPT
+
+          # 3. 调用 DeepSeek API
+          curl -s -o /tmp/response.json -w "%{http_code}" \
+            https://api.deepseek.com/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -d @/tmp/request.json > /tmp/status_code.txt
+
+          STATUS=$(cat /tmp/status_code.txt)
+
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ API 错误 (HTTP $STATUS)"
+            ERROR_MSG=$(node -e "try{const d=JSON.parse(require('fs').readFileSync('/tmp/response.json','utf8'));console.log(d.error?.message||JSON.stringify(d))}catch(e){console.log('无法解析错误响应')}")
+            gh api "/repos/$REPO/issues/$ISSUE_NUMBER/comments" --input - <<< "$(jq -n --arg msg "❌ API 调用失败 (HTTP $STATUS):\n\`\`\`\n$ERROR_MSG\n\`\`\`" '{body: $msg}')"
+            exit 1
+          fi
+
+          # 4. 提取回复内容
+          node -e "
+            const resp = JSON.parse(require('fs').readFileSync('/tmp/response.json','utf8'));
+            const reply = resp.choices?.[0]?.message?.content || '(空响应)';
+            require('fs').writeFileSync('/tmp/reply.md', reply, 'utf8');
+            console.log('✅ 收到回复 (' + reply.length + ' 字符)');
+          "
+
+          # 5. 发布回复到 Issue
+          gh api "/repos/$REPO/issues/$ISSUE_NUMBER/comments" --input - <<< "$(jq -Rs '{body: .}' < /tmp/reply.md)"
+          echo "✅ 回复已发布"
+
+          # 6. 打标签
+          gh api "/repos/$REPO/issues/$ISSUE_NUMBER/labels" -X POST -f labels='["ai-responded"]' 2>/dev/null || true

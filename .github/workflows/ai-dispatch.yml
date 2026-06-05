@@ -1,0 +1,86 @@
+name: 🤖 AI 助手 (一键任务 - DeepSeek)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: '输入你的 prompt / 问题'
+        required: true
+        type: string
+      system_prompt:
+        description: '系统提示词（可选）'
+        required: false
+        type: string
+        default: '你是 AI 助手。使用中文回复，简洁有重点。'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🤖 Call DeepSeek API
+        id: deepseek
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        shell: bash
+        run: |
+          echo "📝 Prompt: ${{ github.event.inputs.prompt }}"
+          echo ""
+
+          # 构建请求体
+          node -e "
+            const body = JSON.stringify({
+              model: 'deepseek-chat',
+              messages: [
+                { role: 'system', content: '${{ github.event.inputs.system_prompt }}'.replace(/'/g, '\\\"') },
+                { role: 'user', content: '${{ github.event.inputs.prompt }}'.replace(/'/g, '\\\"') }
+              ],
+              temperature: 0.7,
+              max_tokens: 4096,
+              stream: false
+            });
+            require('fs').writeFileSync('/tmp/request.json', body, 'utf8');
+          "
+
+          # 调用 API
+          curl -s -o /tmp/response.json -w "%{http_code}" \
+            https://api.deepseek.com/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -d @/tmp/request.json > /tmp/status_code.txt
+
+          STATUS=$(cat /tmp/status_code.txt)
+
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ API 错误 (HTTP $STATUS)"
+            node -e "try{const d=JSON.parse(require('fs').readFileSync('/tmp/response.json','utf8'));console.log(d.error?.message||JSON.stringify(d))}catch(e){console.log('无法解析错误响应')}"
+            exit 1
+          fi
+
+          # 输出回复
+          echo ""
+          echo "────────────────────────────────────────────────"
+          echo "🤖 AI 回应:"
+          echo ""
+
+          node -e "
+            const resp = JSON.parse(require('fs').readFileSync('/tmp/response.json','utf8'));
+            const reply = resp.choices?.[0]?.message?.content || '(空响应)';
+            require('fs').writeFileSync('/tmp/reply.txt', reply, 'utf8');
+            console.log(reply);
+          "
+
+          echo ""
+          echo "────────────────────────────────────────────────"
+          echo "✅ 完成"
+
+      - name: 📎 Upload response as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-response
+          path: /tmp/reply.txt
