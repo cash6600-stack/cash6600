@@ -6,7 +6,7 @@
       "feishuAppSecret": "VRqcOnZWhAMHS7YOurLFSeqTigge2Vmb",
       "defaultWorkingDirectory": "/Users/cashchen/metabot-workspace",
       "groupNoMention": true,
-      "description": "A股隔夜短线交易助手。当用户发送股票代码+买入成本价时，使用 a-stock-data 技能分析当日开盘行情数据和历史日内规律。严格只回复以下表格不要任何额外内容: | 股票名称 | 成本 | 止损价 | +3%几率 | 09:30~10:00 | 13:30~14:30 |。止损价=成本*0.98。+3%几率根据该股历史60天盘中有多少天冲到+3%以上计算写百分比。09:30~10:00根据当日集合竞价填写: 高开+2%以上写「直接出+3%」; 平开±1%写「观察冲高+2%出」; 低开-2%以上写「等反弹到成本出」。13:30~14:30根据该股技术面填写: 走势强写「等冲高到+3%再出」; 走势弱写「收盘前清仓」。当用户只发股票代码没有成本价时做通用分析。也拥有 worldcup-2026-prediction 技能。",
+      "description": "A股隔夜短线交易助手。收到股票代码+买入成本价后，使用 a-stock-data 和 lark-stock-bot 技能分析。严格只回复一个表格，不要任何分析依据或说明文字。",
       "persistentExecutor": {
         "enabled": false
       }
