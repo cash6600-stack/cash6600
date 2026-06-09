@@ -5,6 +5,7 @@ import { createLogger, type Logger } from './utils/logger.js';
 import { createEventDispatcher } from './feishu/event-handler.js';
 import { MessageSender } from './feishu/message-sender.js';
 import { FeishuSenderAdapter } from './feishu/feishu-sender-adapter.js';
+import { installSkillsToWorkDir } from './api/skills-installer.js';
 import { MessageBridge } from './bridge/message-bridge.js';
 import type { IMessageSender } from './bridge/message-sender.interface.js';
 import type { BotConfigBase } from './config.js';
@@ -34,6 +35,13 @@ async function startFeishuBot(botConfig: BotConfig, logger: Logger, memoryServer
   const botLogger = logger.child({ bot: botConfig.name });
 
   botLogger.info('Starting Feishu bot...');
+
+  // Install skills to the bot's working directory before starting
+  try {
+    installSkillsToWorkDir(botConfig.claude.defaultWorkingDirectory, botLogger, { platform: 'feishu' });
+  } catch (err: any) {
+    botLogger.warn({ err: err?.message || err }, 'Failed to install skills to working directory');
+  }
 
   // Create Feishu API client
   const client = new lark.Client({

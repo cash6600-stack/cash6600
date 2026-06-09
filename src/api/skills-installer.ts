@@ -15,7 +15,7 @@ import type { Logger } from '../utils/logger.js';
  *  Default ad-hoc scheduling is handled by Claude Code's native `CronCreate`
  *  and `/loop` tools, so the persistent scheduler skill is now opt-in.
  */
-const COMMON_SKILLS = ['metamemory', 'metabot', 'phone-call', 'skill-hub'];
+const COMMON_SKILLS = ['metamemory', 'metabot', 'phone-call', 'skill-hub', 'a-stock-data'];
 
 /** Lark CLI AI Agent skills — installed via `npx skills add larksuite/cli` and
  *  symlinked into ~/.claude/skills/ automatically. We copy them to the bot

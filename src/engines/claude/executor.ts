@@ -163,6 +163,8 @@ export interface ApiContext {
   groupMembers?: string[];
   /** Group ID — used to build grouptalk chatIds for inter-bot communication. */
   groupId?: string;
+  /** Bot description/role instructions — appended to the system prompt. */
+  description?: string;
 }
 
 /**
@@ -341,6 +343,13 @@ export class ClaudeExecutor {
       appendSections.push(
         `## MetaBot API\nYou are running as bot "${apiContext.botName}" in chat "${apiContext.chatId}".\nUse the /metabot skill for full API documentation (agent bus, scheduling, bot management).`
       );
+
+      // Inject bot description/role instructions into the system prompt
+      if (apiContext.description) {
+        appendSections.push(
+          `## Role & Behavior\n${apiContext.description}`
+        );
+      }
 
       // Agent Teams namespace guidance: the team config lives at
       // ~/.claude/teams/{name}/, which is shared across all bots and chats

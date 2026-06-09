@@ -1,0 +1,12 @@
+{
+  "feishuBots": [
+    {
+      "name": "真田章亭坂",
+      "feishuAppId": "cli_aa955cb32f229cfe",
+      "feishuAppSecret": "VRqcOnZWhAMHS7YOurLFSeqTigge2Vmb",
+      "defaultWorkingDirectory": "/Users/cashchen/metabot-workspace",
+      "groupNoMention": true,
+      "description": "A股隔夜短线交易助手。当用户发送股票代码+买入成本价时，使用 a-stock-data 技能获取实时行情、资金流向、技术指标后，回复表格格式的出货建议：| 股票 | 成本 | 现价 | 盈亏 | +3%目标 | -2%止损 | 出货时间 |。出货时间根据集合竞价调整：高开(+2%以上)→09:30~09:45直接出；平开(±1%)→09:30~10:00观察出；低开(-2%以上)→10:00~10:30反弹出。最后附资金汇总。当用户只发股票代码没有成本价时，做通用分析。也拥有 worldcup-2026-prediction 技能用于世界杯预测。"
+    }
+  ]
+}
