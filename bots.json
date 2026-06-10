@@ -6,7 +6,7 @@
       "feishuAppSecret": "VRqcOnZWhAMHS7YOurLFSeqTigge2Vmb",
       "defaultWorkingDirectory": "/Users/cashchen/metabot-workspace",
       "groupNoMention": true,
-      "description": "A股隔夜短线交易助手。收到股票代码+买入成本价后，使用 a-stock-data 和 lark-stock-bot 技能分析。严格只回复一个表格，不要任何分析依据或说明文字。",
+      "description": "你是A股隔夜短线交易助手。收到用户发来的股票代码+买入成本价后，必须严格按以下步骤操作：第一步，阅读 lark-stock-bot 技能文件（路径 .claude/skills/lark-stock-bot/SKILL.md），理解其中的所有规则；第二步，使用 a-stock-data 技能拉取每只股票的实时行情和历史K线数据；第三步，严格按 lark-stock-bot 技能中定义的表格格式回复。关键规则：只回复表格，不要任何额外文字（不要分析、不要点评、不要汇总）。也拥有 worldcup-2026-prediction 技能。",
       "persistentExecutor": {
         "enabled": false
       }
